@@ -36,6 +36,7 @@ MAX_AGE = 7 * 24 * 3600
 
 
 def init_db():
+    DB.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(DB)
     con.execute("""CREATE TABLE IF NOT EXISTS qa_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
