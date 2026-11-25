@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>视频知识库</title>
+<style>
+  :root{--ink:#1f2933;--sub:#5b6b7c;--line:#e3e8ee;--accent:#1f4e79;--bg:#f6f8fb;--card:#fff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.7 "Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+  .app{display:flex;min-height:100vh}
+  aside{width:320px;flex:none;border-right:1px solid var(--line);background:var(--card);
+        padding:20px 16px;overflow:auto;height:100vh;position:sticky;top:0}
+  main{flex:1;padding:26px 34px 80px;max-width:900px;margin:0 auto}
+  h1{font-size:21px;margin:0 0 4px;color:var(--accent);letter-spacing:.5px}
+  .stats{color:var(--sub);font-size:12.5px;margin-bottom:18px}
+  .progress{font-size:12.5px;color:var(--accent);background:#eef4fa;border:1px solid #dbe8f4;
+            border-radius:8px;padding:8px 10px;margin:-8px 0 14px;line-height:1.5}
+  .progress.off{display:none}
+  .bar{height:4px;background:#dbe8f4;border-radius:2px;margin-top:6px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .4s}
+  .import{margin:-6px 0 14px}
+  .import button{width:100%;padding:8px;border:1px dashed #b9cde3;background:#fbfcfe;border-radius:8px;
+                 color:var(--accent);font:inherit;font-size:13px;cursor:pointer}
+  .import button:hover{background:#f2f7fc}
+  .up{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--sub);padding:4px 2px}
+  .up i{font-style:normal;color:var(--accent)}
+  .stage{border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px;background:#fbfcfe}
+  .est{display:flex;justify-content:space-between;font-size:12px;padding:3px 2px;gap:8px}
+  .est span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .est span:last-child{color:var(--sub);flex:none}
+  .stagerow{display:flex;gap:6px;margin-top:8px}
+  .stagerow button{flex:1;padding:6px;font-size:12px;border-radius:6px;border:1px solid #cfd8e3;background:#fff;cursor:pointer}
+  .stagerow button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .trashbox{margin-top:18px;border-top:1px dashed var(--line);padding-top:10px}
+  .trash-head{font-size:12.5px;color:var(--sub);cursor:pointer;display:flex;justify-content:space-between}
+  .trash-head:hover{color:var(--accent)}
+  .titem{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;
+         padding:6px 4px;border-bottom:1px solid #f0f3f7}
+  .titem span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .titem button{border:none;background:#eef4fa;color:var(--accent);border-radius:6px;padding:3px 8px;
+                font-size:11px;cursor:pointer;flex:none}
+  .hidden{display:none}
+  .logout{margin-top:12px;font-size:12px}
+  .logout a{color:var(--sub);text-decoration:none}
+  .logout a:hover{color:var(--accent)}
+  #docview{padding:22px 24px;max-height:70vh;overflow:auto;line-height:1.9;white-space:pre-wrap}
+  .docmeta{color:var(--sub);font-size:12px;margin-bottom:10px}
+  .docbody{font-size:15px}
+  .panelrow{margin:-6px 0 14px}
+  .panelrow button{width:100%;padding:7px;border:1px solid var(--line);background:#fff;border-radius:8px;
+                   color:var(--sub);font:inherit;font-size:12.5px;cursor:pointer}
+  .panelrow button:hover{border-color:#b9cde3;color:var(--accent)}
+  .fb{display:flex;gap:8px;margin-top:14px;align-items:center;color:var(--sub);font-size:12px}
+  .fb button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 10px;cursor:pointer;font-size:13px}
+  .fb button:hover{border-color:#b9cde3}
+  .fb button.on{background:#e8f0f8;border-color:#b9cde3;color:var(--accent)}
+  .kpi{display:flex;gap:22px;margin-bottom:16px}
+  .kpi div{font-size:13px;color:var(--sub)}
+  .kpi b{display:block;font-size:22px;color:var(--accent)}
+  .sect{margin-top:16px}
+  .sect h4{font-size:13px;margin:0 0 6px;color:var(--accent)}
+  .sect li{font-size:13px;color:#323f4b;margin:3px 0}
+  .st{display:inline-block;margin-left:4px;padding:0 6px;border-radius:999px;font-size:11px}
+  .st.available{background:#e8f5ec;color:#2f7d4f}
+  .st.check{background:#fff3d9;color:#8a5a00}
+  .st.processing{background:#eef4fa;color:#5b6b7c}
+  .st.missing{background:#fde8e8;color:#b03060}
+  .vitem.disabled{opacity:.65;cursor:default}
+  .vitem{padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;
+         cursor:pointer;background:#fbfcfe;transition:.15s}
+  .vitem:hover{border-color:#b9cde3;background:#f4f8fd}
+  .vname{font-size:13.5px;font-weight:600;line-height:1.45;
+         display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .vmeta{color:var(--sub);font-size:12px;margin-top:3px}
+  .askbox{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;
+          box-shadow:0 2px 10px rgba(31,78,121,.04)}
+  .askbar{display:flex;gap:10px}
+  .askbar input{flex:1;padding:12px 14px;border:1px solid #cfd8e3;border-radius:10px;font:inherit;outline:none}
+  .askbar input:focus{border-color:#8fb3d4;box-shadow:0 0 0 3px #e8f0f8}
+  .askbar select{padding:10px 8px;border:1px solid #cfd8e3;border-radius:10px;font:inherit;
+                 background:#fff;max-width:180px;outline:none}
+  .course{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden;background:#fff}
+  .course-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 10px;
+               cursor:pointer;background:#f7fafd}
+  .course-head:hover{background:#eef4fa}
+  .course-head b{font-size:13px;color:var(--accent);font-weight:600}
+  .course-head span{font-size:11.5px;color:var(--sub);flex:none}
+  .course-items{padding:6px}
+  .course-items.hidden{display:none}
+  .course-head img.cover{width:92px;height:52px;object-fit:cover;border-radius:7px;flex:none;background:#e8f0f8}
+  .cinfo{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}
+  .cinfo b{font-size:13px;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cinfo span{font-size:11.5px;color:var(--sub)}
+  .cbar{height:3px;background:#e3e8ee;border-radius:2px;overflow:hidden}
+  .cbar i{display:block;height:100%;background:#2f7d4f}
+  .arrow{color:var(--sub);font-size:12px;flex:none}
+  .verr{font-size:11.5px;color:#b03060;margin-top:6px;line-height:1.5}
+  .retry{margin-top:6px;border:1px solid #e0b86a;background:#fffaf0;color:#8a5a00;
+         border-radius:6px;padding:2px 10px;font-size:12px;cursor:pointer}
+  #toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%) translateY(20px);
+         background:#1f4e79;color:#fff;padding:10px 18px;border-radius:9px;font-size:13px;
+         opacity:0;pointer-events:none;transition:.25s;z-index:99;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+  #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+  .askbar button{padding:12px 22px;border:none;border-radius:10px;background:var(--accent);color:#fff;
+                 font:inherit;cursor:pointer}
+  .askbar button:hover{background:#173d5e}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chip{padding:4px 11px;border-radius:999px;background:#eef4fa;color:var(--accent);font-size:12.5px;
+        cursor:pointer;border:1px solid #dbe8f4}
+  .chip:hover{background:#dcebf8}
+  #answer{margin-top:18px;white-space:pre-wrap;line-height:1.9;display:none}
+  #answer.on{display:block}
+  .cite{display:inline-flex;align-items:center;gap:4px;margin:0 3px;padding:1px 8px;border-radius:999px;
+        background:#eef4fa;color:var(--accent);font-size:12px;cursor:pointer;font-family:Consolas,monospace}
+  .cite:hover{background:#dcebf8}
+  .cite.weak{background:#fff3d9;color:#8a5a00;border:1px dashed #e0b86a}
+  .thinking{color:var(--sub);margin-top:16px}
+  .hint{color:var(--sub);font-size:12.5px;margin-top:14px}
+  .empty{color:var(--sub);font-size:13px;padding:16px 4px}
+  .modal{position:fixed;inset:0;background:rgba(16,24,40,.72);display:none;align-items:center;
+         justify-content:center;padding:24px;z-index:50}
+  .modal.on{display:flex}
+  .mbox{background:#fff;border-radius:14px;width:min(980px,100%);max-height:92vh;overflow:auto}
+  .mhead{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .mhead b{font-size:14px;flex:1;line-height:1.4}
+  .mhead button{border:none;background:#f1f4f8;border-radius:8px;padding:6px 12px;cursor:pointer;font:inherit}
+  video{width:100%;display:block;background:#000}
+  .chaps{padding:12px 18px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:6px}
+  .chap{display:flex;gap:8px;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px}
+  .chap:hover{background:#f2f7fc}
+  .chap time{color:var(--accent);font-family:Consolas,monospace;flex:none}
+  @media (max-width:860px){.app{flex-direction:column}aside{width:auto;height:auto;position:static}
+    main{padding:20px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h1>视频知识库</h1>
+    <div class="stats" id="stats">加载中…</div>
+    <div class="progress" id="progress"></div>
+    <div class="import">
+      <button id="pick">＋ 导入文件</button>
+      <input type="file" id="file" multiple hidden>
+      <datalist id="courseList"></datalist>
+      <div id="stage" class="stage hidden"></div>
+      <div id="ups"></div>
+    </div>
+    <div class="panelrow"><button id="statsBtn">数据看板</button></div>
+    <div id="list"></div>
+    <div class="trashbox">
+      <div class="trash-head" id="trashToggle"><span>回收站</span><span id="trashCount">0</span></div>
+      <div id="trashList" class="hidden"></div>
+      <div class="logout"><a href="/api/logout">退出登录</a></div>
+    </div>
+    <div id="list"></div>
+  </aside>
+  <main>
+    <div class="askbox">
+      <div class="askbar">
+        <select id="scope" title="问答范围"></select>
+        <input id="q" placeholder="问点什么，例如：私域流量有哪些来源？">
+        <button id="go">提问</button>
+      </div>
+      <div class="chips" id="examples"></div>
+      <div id="answer"></div>
+      <div class="hint">答案只依据已入库视频的逐字稿；每个结论后的时间戳可以点开原片。</div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+<div class="modal" id="statsmodal">
+  <div class="mbox" style="max-width:760px">
+    <div class="mhead"><b>数据看板</b><button id="sclose">关闭</button></div>
+    <div id="statsBody" style="padding:18px 22px"></div>
+  </div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="mbox">
+    <div class="mhead"><b id="mtitle"></b><button id="mdel">删除</button><button id="mclose">关闭</button></div>
+    <video id="player" controls preload="metadata"></video>
+    <iframe id="pdf" class="hidden" style="width:100%;height:78vh;border:0;background:#fff"></iframe>
+    <div id="docview" class="hidden"></div>
+    <img id="imgview" class="hidden" style="width:100%;display:block;background:#111">
+    <div class="chaps" id="chaps"></div>
+  </div>
+</div>
+
+<script>
+const EXAMPLES = ["私域流量有哪些来源？", "为什么要做私域流量？", "如何提升私域转化率？"];
+let VIDEOS = [], current = {id: null, t: 0};
+
+const mmss = s => String(Math.floor(s/60)).padStart(2,'0') + ':' + String(Math.floor(s%60)).padStart(2,'0');
+const esc = t => t.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+let toastTimer = null;
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('on'), 2600);
+}
+
+async function loadVideos(){
+  const r = await fetch('/api/videos');
+  VIDEOS = await r.json();
+  const total = VIDEOS.reduce((a,v)=>a+(v.duration||0),0);
+  document.getElementById('stats').textContent =
+    VIDEOS.length ? `${VIDEOS.length} 个视频 · ${(total/3600).toFixed(1)} 小时` : '还没有入库的视频';
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  if(!VIDEOS.length){ list.innerHTML = '<div class="empty">先运行 batch.py scan / run 入库。</div>'; return; }
+  const STATE = {available:'可用', check:'建议检查', processing:'处理中'};
+  const groups = {};
+  VIDEOS.forEach(v=>{
+    const key = v.course || '未分类';
+    (groups[key] = groups[key] || []).push(v);
+  });
+
+  const dl = document.getElementById('courseList');
+  if (dl) dl.innerHTML = Object.keys(groups).map(c=>`<option value="${esc(c)}">`).join('');
+
+  Object.keys(groups).forEach(name=>{
+    const items = groups[name];
+    const hours = items.reduce((a,v)=>a+(v.duration||0),0)/3600;
+    const ready = items.filter(v=>v.state !== 'processing').length;
+    const pct = Math.round(ready / items.length * 100);
+    const box = document.createElement('div');
+    box.className = 'course';
+    const head = document.createElement('div');
+    head.className = 'course-head';
+    head.innerHTML = `
+      <img class="cover" alt="" src="/cover?course=${encodeURIComponent(name)}">
+      <div class="cinfo">
+        <b>${esc(name)}</b>
+        <span>${items.length} 项${hours >= 0.1 ? ` · ${hours.toFixed(1)} 小时` : ''} · 可用 ${ready}</span>
+        <div class="cbar"><i style="width:${pct}%"></i></div>
+      </div>
+      <span class="arrow">▾</span>`;
+    const body = document.createElement('div');
+    body.className = 'course-items hidden';
+    head.onclick = ()=>body.classList.toggle('hidden');
+    const img = head.querySelector('.cover');
+    img.onerror = ()=>{ img.style.visibility = 'hidden'; };
+    items.forEach(v=>{
+      const missing = v.missing;
+      const el = document.createElement('div');
+      el.className = 'vitem' + ((v.state === 'processing' || missing) ? ' disabled' : '');
+      const badge = missing
+        ? '<span class="st missing">源文件缺失</span>'
+        : `<span class="st ${v.state}">${STATE[v.state] || v.status}</span>`;
+      el.innerHTML = `<div class="vname">${esc(v.name)}</div>
+        <div class="vmeta">${v.time} · ${v.chapters.length} 章 ${badge}</div>
+        ${v.error ? `<div class="verr">${esc(v.error)}</div>` : ''}`;
+      if (v.state !== 'processing' && !missing && !v.error) el.onclick = ()=>openVideo(v, 0);
+      if (v.error) {
+        const b = document.createElement('button');
+        b.className = 'retry';
+        b.textContent = '重试';
+        b.onclick = async (e)=>{
+          e.stopPropagation();
+          b.disabled = true; b.textContent = '已排入队列';
+          await fetch('/api/retry/' + v.id, {method:'POST'});
+          setTimeout(loadVideos, 800);
+        };
+        el.appendChild(b);
+      }
+      body.appendChild(el);
+    });
+    box.appendChild(head);
+    box.appendChild(body);
+    list.appendChild(box);
+  });
+
+  const scope = document.getElementById('scope');
+  const prev = scope.value;
+  const courses = ['全部', ...Object.keys(groups)];
+  scope.innerHTML = courses.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  scope.value = courses.includes(prev) ? prev : '全部';
+}
+
+function openVideo(v, t){
+  current = {id: v.id, t: t};
+  document.getElementById('mtitle').textContent = v.name;
+  const p = document.getElementById('player');
+  const pdf = document.getElementById('pdf');
+  const docv = document.getElementById('docview');
+  const imgv = document.getElementById('imgview');
+  const box = document.getElementById('chaps');
+  box.innerHTML = '';
+  if (v.kind === 'pdf') {
+    p.pause(); p.classList.add('hidden'); docv.classList.add('hidden'); imgv.classList.add('hidden');
+    pdf.classList.remove('hidden');
+    const page = Math.max(1, parseInt(t || 1, 10));
+    pdf.src = `/file/${v.id}#page=${page}`;
+    (v.chapters||[]).forEach(c=>{
+      const el = document.createElement('div');
+      el.className='chap';
+      el.innerHTML = `<time>P${c.page || c.start}</time><span>${esc(c.title)}</span>`;
+      el.onclick = ()=>{ pdf.src = `/file/${v.id}#page=${c.page || c.start}`; };
+      box.appendChild(el);
+    });
+  } else if (v.kind === 'docx') {
+    p.pause(); p.classList.add('hidden'); pdf.classList.add('hidden'); pdf.removeAttribute('src');
+    imgv.classList.add('hidden');
+    docv.classList.remove('hidden');
+    docv.innerHTML = '<div class="docmeta">点击答案里的引用可查看对应段落</div>' +
+      `<div class="docbody">${esc(v.summary || '')}</div>`;
+    (v.chapters||[]).forEach(c=>{
+      const el = document.createElement('div');
+      el.className='chap';
+      el.innerHTML = `<time>${esc(c.locator || '')}</time><span>${esc(c.title)}</span>`;
+      box.appendChild(el);
+    });
+  } else if (v.kind === 'image') {
+    p.pause(); p.classList.add('hidden'); pdf.classList.add('hidden'); pdf.removeAttribute('src');
+    docv.classList.add('hidden');
+    imgv.classList.remove('hidden');
+    imgv.src = `/file/${v.id}`;
+    (v.chapters||[]).forEach(c=>{
+      const el = document.createElement('div');
+      el.className='chap';
+      el.innerHTML = `<time>${esc(c.locator || '')}</time><span>${esc(c.title)}</span>`;
+      box.appendChild(el);
+    });
+  } else {
+    pdf.classList.add('hidden'); pdf.removeAttribute('src');
+    docv.classList.add('hidden'); imgv.classList.add('hidden');
+    p.classList.remove('hidden');
+    p.src = `/video/${v.id}`;
+    p.onloadedmetadata = ()=>{ try{ p.currentTime = t; p.play(); }catch(e){} };
+    (v.chapters||[]).forEach(c=>{
+      const el = document.createElement('div');
+      el.className='chap';
+      el.innerHTML = `<time>${mmss(c.start)}</time><span>${esc(c.title)}</span>`;
+      el.onclick = ()=>{ p.currentTime = c.start; p.play(); };
+      box.appendChild(el);
+    });
+  }
+  document.getElementById('modal').classList.add('on');
+}
+
+function openDocx(v, locator, snippet){
+  current = {id: v.id, t: 0};
+  document.getElementById('mtitle').textContent = v.name + ' · ' + locator;
+  const p = document.getElementById('player');
+  const pdf = document.getElementById('pdf');
+  const docv = document.getElementById('docview');
+  p.pause(); p.classList.add('hidden');
+  pdf.classList.add('hidden'); pdf.removeAttribute('src');
+  docv.classList.remove('hidden');
+  docv.innerHTML = `<div class="docmeta">${esc(locator)}</div><div class="docbody">${esc(snippet)}</div>`;
+  document.getElementById('chaps').innerHTML = '';
+  document.getElementById('modal').classList.add('on');
+}
+
+document.getElementById('mclose').onclick = ()=>{
+  const p = document.getElementById('player'); p.pause(); p.removeAttribute('src'); p.load();
+  const pdf = document.getElementById('pdf'); pdf.removeAttribute('src'); pdf.classList.add('hidden');
+  const imgv = document.getElementById('imgview'); imgv.removeAttribute('src'); imgv.classList.add('hidden');
+  document.getElementById('docview').classList.add('hidden');
+  document.getElementById('modal').classList.remove('on');
+};
+document.getElementById('modal').onclick = e=>{ if(e.target.id==='modal') document.getElementById('mclose').click(); };
+
+function citeChip(c){
+  const weak = c.weak ? ' weak' : '';
+  const title = esc(c.name) + (c.weak ? '（该引用与结论关联较弱，建议核对原文）' : '');
+  return `<span class="cite${weak}" data-vid="${c.video_id}" data-t="${c.t}" data-page="${c.page || ''}"
+    data-kind="${c.kind || 'video'}" data-locator="${esc(c.locator || '')}"
+    data-snippet="${esc(c.snippet || '')}" title="${title}">▸ ${c.time}</span>`;
+}
+
+function renderAnswer(d){
+  const map = {};
+  (d.cites||[]).forEach(c=>{ map[c.n]=c; });
+  const html = esc(d.answer).replace(/\[(\d+)\]/g, (m,n)=> map[n] ? citeChip(map[n]) : m);
+  const box = document.getElementById('answer');
+  box.className = 'on';
+  box.innerHTML = html;
+  box.querySelectorAll('.cite').forEach(el=>{
+    el.onclick = ()=>{
+      const v = VIDEOS.find(x=>x.id==el.dataset.vid);
+      if(!v) return;
+      if (v.kind === 'pdf') openVideo(v, el.dataset.page || 1);
+      else if (v.kind === 'docx') openDocx(v, el.dataset.locator, el.dataset.snippet);
+      else openVideo(v, parseFloat(el.dataset.t));
+    };
+  });
+
+  if (d.log_id){
+    const fb = document.createElement('div');
+    fb.className = 'fb';
+    fb.innerHTML = '<span>这条答案有用吗？</span><button data-r="1">👍 有用</button><button data-r="-1">👎 没用</button>';
+    box.appendChild(fb);
+    fb.querySelectorAll('button').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const rating = parseInt(btn.dataset.r, 10);
+        try{
+          await fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({id:d.log_id, rating})});
+          fb.querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+          btn.classList.add('on');
+          fb.querySelector('span').textContent = rating === 1 ? '已记录：有用' : '已记录：没用，会进改进清单';
+        }catch(e){}
+      };
+    });
+  }
+}
+
+async function ask(){
+  const q = document.getElementById('q').value.trim();
+  if(!q) return;
+  const box = document.getElementById('answer');
+  box.className='on';
+  box.innerHTML = '<div class="thinking">正在检索所有视频并生成答案…</div>';
+  try{
+    const r = await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({question:q, course:document.getElementById('scope').value})});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error||('HTTP '+r.status));
+    renderAnswer(d);
+  }catch(e){
+    box.innerHTML = `<div class="thinking">出错了：${esc(String(e.message||e))}</div>`;
+  }
+}
+
+document.getElementById('go').onclick = ask;
+document.getElementById('q').addEventListener('keydown', e=>{ if(e.key==='Enter') ask(); });
+
+const ex = document.getElementById('examples');
+EXAMPLES.forEach(q=>{
+  const el = document.createElement('span');
+  el.className='chip'; el.textContent=q;
+  el.onclick = ()=>{ document.getElementById('q').value=q; ask(); };
+  ex.appendChild(el);
+});
+
+async function loadProgress(){
+  try{
+    const r = await fetch('/api/progress');
+    const p = await r.json();
+    const box = document.getElementById('progress');
+    if(!p.total){ box.classList.add('off'); return; }
+    box.classList.remove('off');
+    const done = p.ready.n + p.failed.n;
+    const pct = Math.round(done / p.total * 100);
+    const cur = p.current ? ` · 正在转写：${esc(p.current.name)}` : '';
+    box.innerHTML = `已入库 ${p.ready.n}/${p.total} 个 · ${p.ready.hours.toFixed(1)}/${p.total_hours.toFixed(1)} 小时${cur}
+      <div class="bar"><i style="width:${pct}%"></i></div>`;
+  }catch(e){}
+}
+
+const pick = document.getElementById('pick');
+const fileInput = document.getElementById('file');
+let staged = [];
+
+pick.onclick = ()=>fileInput.click();
+fileInput.onchange = ()=>{ stageFiles([...fileInput.files]); fileInput.value=''; };
+
+function estimate(file){
+  const mb = file.size / 1e6;
+  if(/\.(mp4|mkv|mov|avi|flv|wmv|m4v|webm)$/i.test(file.name)){
+    const hours = mb / 1200;
+    return {label:`视频 ≈ ${Math.max(1, Math.round(hours*60))} 分钟`, mins: Math.max(0.5, hours*60/20), cost: hours*0.15};
+  }
+  const pages = Math.max(1, Math.round(mb / 1.5));
+  return {label:`文档 ≈ ${pages} 页`, mins: pages/40, cost: pages*0.01};
+}
+
+function stageFiles(files){
+  if(!files.length) return;
+  staged = files;
+  const box = document.getElementById('stage');
+  box.classList.remove('hidden');
+  box.innerHTML = '';
+  let mins = 0, cost = 0;
+  files.forEach(f=>{
+    const e = estimate(f);
+    mins += e.mins; cost += e.cost;
+    const row = document.createElement('div');
+    row.className = 'est';
+    row.innerHTML = `<span>${esc(f.name)}</span><span>${e.label}</span>`;
+    box.appendChild(row);
+  });
+  const sum = document.createElement('div');
+  sum.className = 'est';
+  sum.style.marginTop = '6px';
+  sum.innerHTML = `<span><b>合计</b></span><span>约 ${Math.max(1, Math.round(mins))} 分钟 · 约 ${cost.toFixed(1)} 元</span>`;
+  box.appendChild(sum);
+
+  const courseRow = document.createElement('div');
+  courseRow.className = 'est';
+  courseRow.innerHTML = '<span>归到课程</span><input id="upCourse" list="courseList" placeholder="留空 = 未分类">';
+  box.appendChild(courseRow);
+
+  const actions = document.createElement('div');
+  actions.className = 'stagerow';
+  actions.innerHTML = '<button id="cancelUp">取消</button><button class="primary" id="startUp">开始导入</button>';
+  box.appendChild(actions);
+  document.getElementById('cancelUp').onclick = ()=>{ staged=[]; box.classList.add('hidden'); };
+  document.getElementById('startUp').onclick = startUpload;
+}
+
+function randId(){
+  const a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  return [...a].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function uploadChunked(file, course, onProgress){
+  const CHUNK = 4 * 1024 * 1024;
+  const uid = randId();
+  const total = Math.ceil(file.size / CHUNK);
+  let sent = 0;
+  for(let i=0;i<total;i++){
+    const start = i * CHUNK, end = Math.min(file.size, start + CHUNK);
+    const blob = file.slice(start, end);
+    let ok = false;
+    for(let attempt=0; attempt<3 && !ok; attempt++){
+      ok = await new Promise(resolve=>{
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `/api/upload_chunk?upload_id=${uid}&index=${i}`);
+        xhr.upload.onprogress = e=>{ if(e.lengthComputable) onProgress(Math.round((sent+e.loaded)/file.size*100)); };
+        xhr.onload = ()=>resolve(xhr.status === 200);
+        xhr.onerror = ()=>resolve(false);
+        xhr.send(blob);
+      });
+    }
+    if(!ok) return false;
+    sent += (end - start);
+    onProgress(Math.round(sent / file.size * 100));
+  }
+  const qs = new URLSearchParams({upload_id: uid, name: file.name, total: String(total)});
+  if(course) qs.set('course', course);
+  const r = await fetch('/api/upload_finish?' + qs.toString(), {method:'POST'});
+  return r.ok;
+}
+
+function uploadOne(file, course, onProgress){
+  if(file.size > 4 * 1024 * 1024) return uploadChunked(file, course, onProgress);
+  return new Promise(resolve=>{
+    const xhr = new XMLHttpRequest();
+    let url = '/api/upload?name=' + encodeURIComponent(file.name);
+    if(course) url += '&course=' + encodeURIComponent(course);
+    xhr.open('POST', url);
+    xhr.upload.onprogress = e => { if(e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
+    xhr.onload = ()=>resolve(xhr.status === 200);
+    xhr.onerror = ()=>resolve(false);
+    xhr.send(file);
+  });
+}
+
+async function startUpload(){
+  const box = document.getElementById('stage');
+  const btn = document.getElementById('startUp');
+  if(!staged.length) return;
+  const course = (document.getElementById('upCourse')?.value || '').trim();
+  btn.textContent = '上传中…'; btn.disabled = true;
+  const ups = document.getElementById('ups');
+  let okCount = 0;
+  for(const f of staged){
+    const row = document.createElement('div');
+    row.className = 'up';
+    row.innerHTML = `<span>${esc(f.name)}</span><i>0%</i>`;
+    ups.appendChild(row);
+    const ok = await uploadOne(f, course, p=>{ row.querySelector('i').textContent = p + '%'; });
+    if(ok) okCount++;
+    row.querySelector('i').textContent = ok ? '已入队' : '失败';
+    setTimeout(()=>row.remove(), 8000);
+  }
+  staged = [];
+  box.classList.add('hidden');
+  toast(`已上传 ${okCount} 个文件${course ? `（${course}）` : ''}，后台开始处理`);
+  loadVideos(); loadProgress();
+}
+
+async function loadTrash(){
+  try{
+    const r = await fetch('/api/trash');
+    const items = await r.json();
+    document.getElementById('trashCount').textContent = items.length;
+    const box = document.getElementById('trashList');
+    box.innerHTML = items.length ? '' : '<div class="empty">回收站是空的</div>';
+    items.forEach(it=>{
+      const row = document.createElement('div');
+      row.className = 'titem';
+      row.innerHTML = `<span title="${esc(it.name)}">${esc(it.name)}</span>
+        <span><button data-act="restore" data-id="${it.id}">恢复</button>
+        <button data-act="purge" data-id="${it.id}">彻底删除</button></span>`;
+      box.appendChild(row);
+    });
+    box.querySelectorAll('button').forEach(b=>{
+      b.onclick = async ()=>{
+        const act = b.dataset.act, id = b.dataset.id;
+        if(act === 'purge' && !confirm('彻底删除后不可恢复，确定吗？')) return;
+        const resp = await fetch(`/api/${act}/${id}`, {method:'POST'});
+        if(resp.ok){ loadTrash(); loadVideos(); }
+      };
+    });
+  }catch(e){}
+}
+
+document.getElementById('trashToggle').onclick = ()=>{
+  document.getElementById('trashList').classList.toggle('hidden');
+};
+
+document.getElementById('mdel').onclick = async ()=>{
+  if(!current.id) return;
+  if(!confirm('删除后可在回收站恢复，确定删除这条吗？')) return;
+  const resp = await fetch(`/api/delete/${current.id}`, {method:'POST'});
+  if(resp.ok){
+    document.getElementById('mclose').click();
+    loadVideos(); loadProgress(); loadTrash();
+  }
+};
+
+async function loadStats(){
+  try{
+    const r = await fetch('/api/stats');
+    const s = await r.json();
+    const li = arr => arr.length ? arr.map(x=>`<li>${esc(x.question)}${x.c?` <span style="color:#5b6b7c">×${x.c}</span>`:''}</li>`).join('') : '<li>暂无</li>';
+    document.getElementById('statsBody').innerHTML = `
+      <div class="kpi">
+        <div><b>${s.week}</b>本周提问</div>
+        <div><b>${s.up}</b>有用</div>
+        <div><b>${s.down}</b>没用</div>
+        <div><b>${s.weak}</b>弱引用</div>
+      </div>
+      <div class="sect"><h4>最常问的问题</h4><ul>${li(s.top)}</ul></div>
+      <div class="sect"><h4>需要改进（点过 👎）</h4><ul>${li(s.bad)}</ul></div>
+      <div class="sect"><h4>没答上来的</h4><ul>${li(s.missing)}</ul></div>`;
+  }catch(e){}
+}
+
+document.getElementById('statsBtn').onclick = ()=>{ loadStats(); document.getElementById('statsmodal').classList.add('on'); };
+document.getElementById('sclose').onclick = ()=>document.getElementById('statsmodal').classList.remove('on');
+
+loadVideos();
+loadProgress();
+loadTrash();
+setInterval(loadProgress, 5000);
+setInterval(loadVideos, 15000);
+</script>
+</body>
+</html>

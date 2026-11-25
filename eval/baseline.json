@@ -1,0 +1,14 @@
+{
+  "recall@5": 0.867,
+  "mrr": 0.712,
+  "citation_precision": 0.464,
+  "citation_recall": 0.8,
+  "citation_recall_strict": 0.747,
+  "avg_cites": 2.59,
+  "refusal_accuracy": 1.0,
+  "median_latency_ms": 4483,
+  "p95_latency_ms": 6288,
+  "n": 75,
+  "n_positive": 75,
+  "n_negative": 10
+}

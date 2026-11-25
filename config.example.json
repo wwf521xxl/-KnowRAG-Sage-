@@ -1,0 +1,11 @@
+{
+  "api_key": "sk-REPLACE_WITH_YOUR_KEY",
+  "base_url": "https://api.deepseek.com",
+  "model": "deepseek-chat",
+  "auth": {
+    "username": "boss",
+    "salt": "REPLACE_BY_set_password.py",
+    "hash": "REPLACE_BY_set_password.py"
+  },
+  "secret": "REPLACE_WITH_RANDOM_HEX"
+}

@@ -1,0 +1,32 @@
+# 虚拟环境与缓存
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# 大体积依赖（模型、CUDA、离线 wheels）
+models/
+cuda/
+wheels/
+
+# 运行时数据（知识库、原片、备份、日志）
+data/
+*.log
+
+# 本地配置：包含 API Key 与登录密码哈希，绝不入库
+config.local.json
+wifi_profile.xml
+
+# 含密码的图片与演示视频
+访问卡片.png
+视屏数据/
+
+# 工具与临时产物
+.dsh-office-*/
+_testvenv/
+*.zip
+*_preview.png
+
+# 编辑器
+.idea/
+.vscode/
