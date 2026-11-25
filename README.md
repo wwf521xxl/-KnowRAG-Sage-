@@ -1,4 +1,4 @@
-# 多模态知识库问答系统
+﻿# 多模态知识库问答系统
 
 ![CI](https://github.com/wwf521xxl/-KnowRAG-Sage-/actions/workflows/ci.yml/badge.svg)
 
@@ -138,7 +138,7 @@ python eval/check_refusal.py
 ├─ backup.py / healthcheck.py / weekly_report.py   # 运维
 ├─ app.py                # 托盘控制面板
 ├─ eval/                 # 评测：出题、跑分、门禁
-├─ scripts（根目录散落）  # 一次性调试脚本，保留以便复现
+├─ scripts/              # 一次性调试/迁移脚本（42 个），保留以便复现
 └─ docs（*.md / *.docx）  # 方案、手册、报告
 ```
 
@@ -179,3 +179,4 @@ python eval/check_refusal.py
 - [`迁移操作手册.md`](迁移操作手册.md)：换机器部署
 - [`老板使用说明.md`](老板使用说明.md)：最终用户手册
 - [`面试准备清单.md`](面试准备清单.md)：项目讲述与高频追问
+

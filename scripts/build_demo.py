@@ -3,7 +3,7 @@ import json
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 SEG = ROOT / "data" / "text" / "demo" / "segments.json"
 VIDEO = "视屏数据/e182316fa47e562613d45ab0f419b5c9.mp4"
 OUT = ROOT / "demo.html"

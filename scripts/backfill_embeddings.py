@@ -4,7 +4,7 @@ import sys
 import time
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from embeddings import Embedder  # noqa: E402
 
 DB = r"D:\知识库问答系统\data\kb.db"

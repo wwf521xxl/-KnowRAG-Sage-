@@ -7,7 +7,7 @@ from pathlib import Path
 
 import requests
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 CFG = json.loads((ROOT / "config.local.json").read_text(encoding="utf-8"))
 API_KEY = CFG["api_key"]
 BASE_URL = CFG.get("base_url", "https://api.deepseek.com").rstrip("/")
