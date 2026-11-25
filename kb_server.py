@@ -316,7 +316,10 @@ def trim_citations(text, max_per_sentence=2):
     return re.sub(r"[^。！？\n]+[。！？]?", lambda m: fix(m.group(0)), text)
 
 
-def ask(question, course=None, debug=False):
+RRF_K = 10  # RRF 平滑常数：越小越看重头部排名
+
+
+def ask(question, course=None, debug=False, mode="hybrid"):
     t0 = time.time()
     idx = load_index()
     t_load = time.time()
@@ -366,19 +369,28 @@ def ask(question, course=None, debug=False):
     fusion, pool = {}, {}
     for rank, (_, s) in enumerate(bm_hits):
         pool[id(s)] = s
-        fusion[id(s)] = fusion.get(id(s), 0) + 1.0 / (60 + rank)
+        fusion[id(s)] = fusion.get(id(s), 0) + 0.7 / (RRF_K + rank)
     for rank, (_, s) in enumerate(vec_hits):
         pool[id(s)] = s
-        fusion[id(s)] = fusion.get(id(s), 0) + 1.0 / (60 + rank)
+        fusion[id(s)] = fusion.get(id(s), 0) + 0.3 / (RRF_K + rank)
     ranked = sorted(fusion.items(), key=lambda kv: -kv[1])[:15]
-    # 分差明显时跳过低置信重排，省 1–1.5 秒；分差小才重排
-    top = ranked[0][1] if ranked else 0
-    second = ranked[1][1] if len(ranked) > 1 else 0
-    clear_winner = second > 0 and top / max(second, 1e-9) > 1.5
-    if clear_winner:
+    # 支持消融实验：bm25 / vector / hybrid（不重排）/ hybrid_rerank（默认）
+    mode = (mode or "hybrid_rerank").lower()
+    if mode == "bm25":
+        hits = [(sc, s) for sc, s in bm_hits[:6]]
+    elif mode == "vector":
+        hits = [(sc, s) for sc, s in vec_hits[:6]]
+    elif mode == "hybrid":
         hits = [(score, pool[k]) for k, score in ranked[:6]]
     else:
-        hits = rerank(question, [(score, pool[k]) for k, score in ranked], keep=6)
+        # 分差明显时跳过低置信重排，省 1–1.5 秒；分差小才重排
+        top = ranked[0][1] if ranked else 0
+        second = ranked[1][1] if len(ranked) > 1 else 0
+        clear_winner = second > 0 and top / max(second, 1e-9) > 1.5
+        if clear_winner:
+            hits = [(score, pool[k]) for k, score in ranked[:6]]
+        else:
+            hits = rerank(question, [(score, pool[k]) for k, score in ranked], keep=6)
     t_rerank = time.time()
 
     retrieved = []
@@ -817,7 +829,8 @@ class Handler(BaseHTTPRequestHandler):
             course = (req.get("course") or "").strip()
             if not q:
                 return self._send(400, json.dumps({"error": "空问题"}))
-            self._send(200, json.dumps(ask(q, course or None, debug=bool(req.get("debug"))),
+            self._send(200, json.dumps(ask(q, course or None, debug=bool(req.get("debug")),
+                                           mode=(req.get("mode") or "hybrid")),
                                        ensure_ascii=False))
         except Exception as e:
             self._send(500, json.dumps({"error": f"{type(e).__name__}: {str(e)[:200]}"}, ensure_ascii=False))
