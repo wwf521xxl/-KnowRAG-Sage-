@@ -8,6 +8,20 @@
 
 ---
 
+## 界面
+
+<img src="docs/screenshots/01-home.png" width="760">
+
+*左边按课程分组（视频课、未分类、会员营销课），右边直接提问*
+
+<img src="docs/screenshots/02-answer.png" width="760">
+
+*答案里的「第 9 页」是引用，点开跳到 PDF 对应页*
+
+<img src="docs/screenshots/03-refusal.png" width="760">
+
+*资料里没有的，直接说没有，不编*
+
 ## 它现在能做什么
 
 - 支持 **7 种格式**：视频、音频、PDF、Word、PPT、Excel、图片；
