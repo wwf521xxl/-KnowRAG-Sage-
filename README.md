@@ -1,5 +1,7 @@
 # 多模态知识库问答系统
 
+![CI](https://github.com/wwf521xxl/-KnowRAG-Sage-/actions/workflows/ci.yml/badge.svg)
+
 把视频、音频、PDF、Word、PPT、Excel、图片统一变成**可检索、可问答、带出处引用**的知识库。
 面向真实场景：用户自己上传资料，自己提问，答案可以点回原文的时间戳或页码。
 
