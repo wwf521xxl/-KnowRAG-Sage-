@@ -1,32 +1,37 @@
-﻿# 多模态知识库问答系统
+# 把视频和文档变成能问答的知识库
 
 ![CI](https://github.com/wwf521xxl/-KnowRAG-Sage-/actions/workflows/ci.yml/badge.svg)
 
-把视频、音频、PDF、Word、PPT、Excel、图片统一变成**可检索、可问答、带出处引用**的知识库。
-面向真实场景：用户自己上传资料，自己提问，答案可以点回原文的时间戳或页码。
+这是我实习期间做的一个项目。
 
-**[效果](#效果) · [架构](#架构) · [快速开始](#快速开始) · [设计取舍](#三个关键取舍) · [评测](#评测)**
+起因很具体：老板手里有一堆课程视频、PDF、Word、PPT，还有微信群里的截图。他想找某个观点，只能拖进度条一个个翻；想确认一句话是谁说的，得从头看。我做了个系统，把这些东西统一变成能搜、能问的知识库，答案是带出处的——点一下就能跳回原视频的那一分钟，或者 PDF 的那一页。
 
 ---
+
+## 它现在能做什么
+
+- 支持 **7 种格式**：视频、音频、PDF、Word、PPT、Excel、图片；
+- 上传后自动转写/解析/结构化，几十秒到几分钟变成「可用」；
+- 用大白话提问，答案给结论 + 要点，每句话后面有 `[n]` 引用；
+- 点引用能跳回原文：视频跳秒、PDF 跳页、Word 显示段落、图片打开原图；
+- 资料里没有的东西，它会直接说「没有提到」，不编。
 
 ## 效果
 
-在 75 条人工审核的问题上（覆盖 7 种格式）：
+我自己标了 75 道题测的（视频、文档、图片都有）：
 
 | 指标 | 结果 |
 |---|---|
-| Recall@5（正确出处在召回前 5） | **0.88** |
-| MRR | **0.70** |
-| 引用召回（答案引到正确出处） | **0.81** |
+| 正确答案在召回前 5 的比例 | **0.88** |
+| 正确出处排第一的频次（MRR） | 0.70 |
+| 答案引到正确出处的比例 | **0.81** |
 | 超纲问题拒答率 | **100%**（10/10） |
-| 端到端延迟 中位 / P95 | **4.5s / 6.3s** |
-| 视频转写速度 | **约 24 倍实时**（RTX 4060） |
+| 回答耗时 中位 / P95 | 4.5s / 6.3s |
+| 视频转写速度 | 约 24 倍实时（RTX 4060） |
 
-> 评测方法与复现命令见 [`eval/README.md`](eval/README.md)，完整报告见 [`评测报告.md`](docs/评测报告.md)。
+> 题是模型先出、我人工删改过的；评测脚本在 [`eval/`](eval/)，方法和完整数据在 [`docs/评测报告.md`](docs/评测报告.md)。
 
----
-
-## 架构
+## 怎么做的
 
 ```mermaid
 flowchart LR
@@ -35,149 +40,102 @@ flowchart LR
     C[图片 / 截图] -->|DeepSeek Vision| U
     T --> S[结构化 + 切块 + 向量化]
     U --> S
-    S --> DB[(SQLite<br/>kb.db)]
-    Q[用户提问] --> R[BM25 + BGE 向量<br/>RRF 融合]
+    S --> DB[(SQLite)]
+    Q[提问] --> R[BM25 + BGE 向量<br/>RRF 融合]
     DB --> R
     R --> RR[LLM 重排]
     RR --> G[生成答案<br/>+ 引用校验]
     G --> UI[Web 界面]
-    UI -->|点击引用| P[跳回原视频 / 页码 / 段落]
 ```
 
-四层：**接入（7 种格式）→ 理解（转写/解析/结构化）→ 检索（混合召回）→ 生成（带引用）**。
+一句话：**接入 → 理解 → 检索 → 生成**。每一步都能单独替换，比如转写可以换云 ASR，向量可以换模型，不影响其他层。
 
----
+## 几个我自己做的决定
 
-## 快速开始
+**用 SQLite，没用 Postgres。**
+单用户、单机、数据 100 MB 级别，SQLite 零运维、整个库就是一个文件，备份就是复制。上 PG 只有在多用户或并发写时才划算。
 
-环境：Windows 10/11、Python 3.10；有 NVIDIA 显卡时自动用 GPU 转写，没有则回退 CPU。
+**没上向量数据库。**
+全库 1000 个块，numpy 暴力算余弦只要 20ms。装 Milvus 只会多一个部署和故障点。我给自己定的线是：10 万块以上再考虑 ANN。
+
+**转写放本地，没用云 ASR。**
+数据不出内网，转写不花钱。代价是要有张显卡——没有的话云 ASR 是更好的选择，2 小时视频大概 1.6 元。
+
+**检索用 BM25 + 向量，不是只用向量。**
+关键词能补语义召回的漏，语义能补换个说法就搜不到的问题。融合用 RRF，因为它只看排名、不看分数量纲，两路分数没法直接比。
+
+**答案要校验引用。**
+模型有时会把引用挂到不相关的片段上。我加了一步：答案里引用了 `[n]` 的那句话，和被引片段字面重合度太低，就标成「弱引用」，提醒用户核对。
+
+## 跑起来
+
+Windows + Python 3.10。有 NVIDIA 显卡会自动用 GPU 转写，没有就走 CPU。
 
 ```bash
-git clone https://github.com/WWF521XXL/<repo>.git
-cd <repo>
+git clone https://github.com/wwf521xxl/-KnowRAG-Sage-.git
+cd -KnowRAG-Sage-
 
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 
-# 下载模型（首次）
-python fetch_model.py              # 转写模型 ~1.5 GB
-python fetch_embedding_model.py    # 向量模型 ~24 MB
+python fetch_model.py              # 转写模型，约 1.5 GB
+python fetch_embedding_model.py    # 向量模型，约 24 MB
 
-# 配置：复制模板，填入自己的 DeepSeek API Key
-copy config.example.json config.local.json
+copy config.example.json config.local.json   # 填自己的 DeepSeek API Key
 python set_password.py 你的密码 boss
 
-# 导入资料并处理
 python batch.py scan "D:\你的资料目录"
 python batch.py run
 
-# 启动
 python kb_server.py 8010
 ```
 
-打开 `http://127.0.0.1:8010`，用设置的账号登录。
+打开 `http://127.0.0.1:8010` 就能用。
 
-> 想开机自启、托盘常驻：双击 `start_all.bat`，或运行 `install_autostart.ps1`。
+> 想让它开机自启、常驻托盘：双击 `start_all.bat`，或者跑 `install_autostart.ps1`。
 
----
+## 踩过的坑
 
-## 三个关键取舍
+**1. 切块跨了文档。**
+一开始把连续句子拼成 500 字的块，没注意文档边界：上一份文档的尾巴和下一份的开头被拼在一起，块的归属记错了。表现是「图片里的内容搜不到」。修法是换文档时强制清空缓冲。
 
-**1. 为什么用 SQLite 而不是 PostgreSQL？**
-单用户、单机、数据量 100 MB 级别；SQLite 零运维、可整库拷走、备份就是复制文件。
-上 PG 只有在多用户或需要并发写时才划算。
+**2. 每次提问都在重建索引。**
+第一版评测时 P95 是 8.3 秒。看耗时明细才发现，每次提问都会写一条问答日志，数据库文件 mtime 变了，索引缓存就失效，于是 2.7 万段全部重读。改成按内容指纹判断重建后，P95 降到 6.3 秒。
 
-**2. 为什么不用向量数据库？**
-全库 1000 个块，numpy 暴力算余弦只需 **20 ms**。
-引入 Milvus/Chroma 会增加部署和故障点，收益为零。规模到 10 万块以上再换 ANN。
+**3. 评测的尺子错了两次。**
+一次是视频匹配只允许 90 秒偏差，但一个块覆盖 2–3 分钟，答案明明在块里却判成没召回；一次是 Word 的「第 N 段」按字符串比对，块起点不是 N 就判错。修完这两次，Recall 从 0.79 涨到 0.85——**但这不是系统变好了，是我量错了。**
 
-**3. 为什么转写放本地而不是云 ASR？**
-数据不出内网、零边际成本；代价是需要一张显卡。
-对比：云 ASR 约 0.8 元/小时，2 小时视频约 1.6 元，但没有显卡时是唯一解。
+**4. CI 第一次就红了。**
+不是测试失败，是测试还没跑起来就 `ImportError`：`batch.py` 顶层 `import av`，CI 只装了最小依赖。改成函数内懒加载就绿了，顺带让模块在不用视频功能时更轻。
 
-**另外两个设计选择**：
-
-- **BM25 + 向量融合**：关键词补语义漏召回，语义补同义表述；用 RRF 是因为两路分数量纲不可比。
-- **引用校验**：答案句子与被引片段字面重合度过低时标为「弱引用」，防止引用挂错。
-
----
-
-## 评测
-
-```bash
-# 出题（LLM 生成候选，人工审核）
-python eval/build_candidates.py
-python eval/review_server.py        # http://127.0.0.1:8020
-
-# 跑分 + 回归门禁
-python eval/run_eval.py --file eval/golden.jsonl --save-baseline
-python eval/run_eval.py --file eval/golden.jsonl --check
-
-# 拒答专项
-python eval/check_refusal.py
-```
-
-指标：Recall@5、MRR、引用召回、平均引用数、拒答准确率、P95 延迟。
-
-> 评测过程中修过三次「尺子」：时间容差、Word 段号匹配、负样本有效性。
-> 教训是：**先确认失败是真的，再优化系统。**
-
----
-
-## 目录结构
+## 目录
 
 ```
-├─ kb_server.py          # HTTP 服务：检索、问答、上传、鉴权
-├─ kb.html               # 单页前端
-├─ kb.db 相关
-│  ├─ batch.py           # 导入流水线：扫描/转写/解析/结构化
-│  ├─ asr_runtime.py     # CUDA DLL + faster-whisper 封装
-│  └─ embeddings.py      # BGE ONNX 向量
-├─ watch.py              # 收件箱监听 + 定时备份
-├─ backup.py / healthcheck.py / weekly_report.py   # 运维
-├─ app.py                # 托盘控制面板
-├─ eval/                 # 评测：出题、跑分、门禁
-├─ scripts/              # 一次性调试/迁移脚本（42 个），保留以便复现
-└─ docs/archive/         # 历史方案（已归档，不影响主流程）
+├─ kb_server.py        # 服务：检索、问答、上传、鉴权
+├─ batch.py            # 导入流水线：扫描、转写、解析、结构化
+├─ asr_runtime.py      # CUDA + faster-whisper 封装
+├─ embeddings.py       # BGE 向量
+├─ watch.py            # 收件箱监听
+├─ backup.py / healthcheck.py / report.py / weekly_report.py
+├─ app.py              # 托盘控制面板
+├─ kb.html             # 单页前端
+├─ eval/               # 评测：出题、跑分、门禁
+├─ scripts/            # 一次性调试/迁移脚本
+└─ docs/               # 方案、手册、报告
 ```
 
-> 根目录的一次性脚本较多（probe_*.py、debug_*.py），是迭代过程的记录，不影响主流程。
+## 没做好的地方
 
----
-
-## 技术栈
-
-| 层 | 选型 |
-|---|---|
-| 后端 | Python 3.10、`http.server`（无 Web 框架） |
-| 前端 | 原生 HTML/CSS/JS（单文件） |
-| 转写 | faster-whisper 1.1.1 + CTranslate2 + CUDA |
-| 解析 | PyMuPDF、python-docx、python-pptx、openpyxl、Pillow |
-| 向量 | BGE-small-zh-v1.5（ONNX 量化，CPU） |
-| 检索 | 字符 bigram BM25 + 余弦 + RRF + LLM 重排 |
-| 生成 | DeepSeek API（OpenAI 兼容） |
-| 存储 | SQLite + 本地文件 |
-| 鉴权 | HMAC 签名 Cookie + PBKDF2-SHA256 |
-
----
-
-## 已知限制
-
-- **单用户**：一个库、一个账号，没有多租户和权限体系；
-- **Windows 优先**：启动脚本、CUDA DLL、托盘都是 Windows 方案；
-- **评测规模**：75 条题，噪声约 ±0.03，小改动难以验证；
-- **扫描版 PDF** 需要 OCR，当前不支持；
-- **并发**：单进程 + 线程，多路同时提问会排队。
-
----
+- **单用户**：一个库、一个账号，没有多租户和权限；
+- **只在 Windows 上验证过**：启动脚本、CUDA DLL、托盘都是 Windows 方案；
+- **评测集只有 75 条**：噪声大约 ±0.03，小改动很难验证，后面要扩到 150 条并留 holdout；
+- **扫描版 PDF 不支持**：没有文字层就提取不到，需要 OCR；
+- **并发**：单进程 + 线程，几个人同时问会排队。
 
 ## 文档
 
-- [`评测报告.md`](docs/评测报告.md)：方法、指标、实验记录
-- [`DEMO.md`](docs/DEMO.md)：3 分钟演示脚本与话术
-- [`迁移操作手册.md`](docs/迁移操作手册.md)：换机器部署
-- [`老板使用说明.md`](docs/老板使用说明.md)：最终用户手册
-- [`面试准备清单.md`](docs/面试准备清单.md)：项目讲述与高频追问
-
-
+- [评测报告](docs/评测报告.md)：怎么出题、指标定义、六次实验记录
+- [3 分钟演示脚本](docs/DEMO.md)：给面试现场用的
+- [迁移操作手册](docs/迁移操作手册.md)：换机器怎么部署
+- [老板使用说明](docs/老板使用说明.md)：最终用户手册
