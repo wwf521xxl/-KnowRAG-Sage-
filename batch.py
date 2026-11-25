@@ -18,7 +18,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import av
 import requests
 
 ROOT = Path(__file__).resolve().parent
@@ -103,6 +102,8 @@ def probe(path):
         return "xlsx", 0.0, None, True
     if suffix in IMG_EXT:
         return "image", 0.0, None, True
+    import av
+
     with av.open(str(path)) as container:
         duration = float(container.duration / av.time_base) if container.duration else 0.0
         has_audio = any(s.type == "audio" for s in container.streams)
